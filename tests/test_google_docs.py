@@ -44,7 +44,7 @@ def test_google_doc_to_markdown_converts_headings_lists_and_tables():
                     "table": {
                         "tableRows": [
                             {
-                        "tableCells": [
+                                "tableCells": [
                                     _cell("Campo\n"),
                                     _cell("Valor\n"),
                                 ]
@@ -69,6 +69,7 @@ def test_google_doc_to_markdown_converts_headings_lists_and_tables():
     assert "- Entregavel 1" in content.markdown
     assert "| Campo | Valor |" in content.markdown
     assert "| Prazo | 30 dias |" in content.markdown
+    assert content.byte_count >= content.char_count
 
 
 def test_google_doc_to_markdown_reads_tabs_content():

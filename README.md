@@ -117,7 +117,7 @@ roles/secretmanager.secretAccessor
 | `ANALYZER_BACKEND` | `local` ou `gemini_rag`. |
 | `GCP_PROJECT_ID` | Projeto GCP para RAG/Gemini. |
 | `GCP_LOCATION` | Regiao do RAG/Gemini. |
-| `MAX_DOCUMENT_CHARS` | Limite de caracteres do documento normalizado. |
+| `MAX_DOCUMENT_BYTES` | Limite em bytes do documento normalizado; padrao: 9 MB. |
 
 ## Testes e qualidade
 
@@ -163,4 +163,3 @@ Depois do deploy, adicione a URL final do Cloud Run como redirect URI no OAuth C
 ## Documentacao
 
 O plano completo esta em [`docs/plano-desenvolvimento-implementacao.md`](docs/plano-desenvolvimento-implementacao.md).
-

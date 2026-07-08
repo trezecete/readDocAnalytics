@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     embedding_model: str = "publishers/google/models/text-embedding-005"
 
     analyzer_backend: Literal["local", "gemini_rag"] = "local"
-    max_document_chars: int = Field(default=100_000, ge=1_000)
+    max_document_bytes: int = Field(default=9_000_000, ge=10_000)
     rag_chunk_size: int = Field(default=512, ge=128)
     rag_chunk_overlap: int = Field(default=100, ge=0)
     rag_top_k: int = Field(default=4, ge=1, le=20)
@@ -53,4 +53,3 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
-

@@ -10,3 +10,6 @@ class DocumentContent(BaseModel):
     def char_count(self) -> int:
         return len(self.markdown)
 
+    @property
+    def byte_count(self) -> int:
+        return len(self.markdown.encode("utf-8"))

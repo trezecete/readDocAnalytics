@@ -100,9 +100,12 @@ async def analyze(request: Request, document_url: str = Form(...)):
     try:
         credentials = CredentialsData.model_validate(credentials_payload)
         document = await run_in_threadpool(docs_reader.read, document_url, credentials)
-        if document.char_count > settings.max_document_chars:
+        if document.byte_count > settings.max_document_bytes:
             raise UserFacingError(
-                f"Documento excede o limite de {settings.max_document_chars} caracteres.",
+                (
+                    "Documento excede o limite de "
+                    f"{_format_bytes(settings.max_document_bytes)} apos normalizacao."
+                ),
                 status_code=413,
             )
         analyzer = build_analyzer(settings)
@@ -216,3 +219,11 @@ def _report_to_markdown(report: AnalysisReport) -> str:
     lines.extend(["", "## Limitacoes", ""])
     lines.extend(f"- {item}" for item in report.limitations)
     return "\n".join(lines).strip()
+
+
+def _format_bytes(value: int) -> str:
+    if value >= 1_000_000:
+        return f"{value / 1_000_000:.1f} MB"
+    if value >= 1_000:
+        return f"{value / 1_000:.1f} KB"
+    return f"{value} bytes"
