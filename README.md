@@ -88,12 +88,16 @@ GCP_LOCATION=europe-west4
 GEMINI_MODEL=gemini-3.5-flash
 ```
 
+O login Google da aplicacao autoriza apenas a leitura do Google Docs do usuario. Ele nao autentica o backend no GCP. Para RAG/Gemini local, configure Application Default Credentials ou uma service account:
+
 Autenticacao local para GCP:
 
 ```powershell
 gcloud auth application-default login
 gcloud config set project SEU_PROJETO
 ```
+
+Se o Google Cloud SDK nao estiver instalado, defina `GOOGLE_APPLICATION_CREDENTIALS` apontando para um JSON de service account com as permissoes minimas. Para projetos novos, prefira `GCP_LOCATION=europe-west4`; regioes como `us-east1`, `us-central1` e `us-east4` podem exigir allowlist para RAG Engine.
 
 Permissao minima inicial para o usuario/service account que executa a app:
 

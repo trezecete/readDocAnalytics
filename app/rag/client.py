@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from uuid import uuid4
 
+from google.auth.exceptions import DefaultCredentialsError
+
 from app.config import Settings
 from app.errors import AnalyzerError, ConfigurationError
 
@@ -65,7 +67,7 @@ class RagEngineClient:
         except (AttributeError, TypeError):
             return self._create_corpus_with_preview(display_name)
         except Exception as exc:
-            raise AnalyzerError("Nao foi possivel criar corpus temporario no RAG Engine.") from exc
+            _raise_rag_error("criar corpus temporario", self.settings, exc)
 
         return corpus.name
 
@@ -102,7 +104,7 @@ class RagEngineClient:
             except (AttributeError, TypeError):
                 self._upload_text_with_preview(corpus_name, text, display_name)
             except Exception as exc:
-                raise AnalyzerError("Nao foi possivel enviar o documento ao RAG Engine.") from exc
+                _raise_rag_error("enviar documento ao RAG Engine", self.settings, exc)
 
     def retrieve_contexts(self, corpus_name: str, queries: list[str]) -> list[RetrievedContext]:
         try:
@@ -134,7 +136,7 @@ class RagEngineClient:
             except (AttributeError, TypeError):
                 return self._retrieve_contexts_with_preview(corpus_name, queries)
             except Exception as exc:
-                raise AnalyzerError("Nao foi possivel recuperar contexto do RAG Engine.") from exc
+                _raise_rag_error("recuperar contexto do RAG Engine", self.settings, exc)
 
             extracted = _extract_context_texts(response)
             contexts.extend(RetrievedContext(query=query, text=text) for text in extracted)
@@ -179,7 +181,7 @@ class RagEngineClient:
         except TypeError:
             corpus = rag.create_corpus(display_name=display_name)
         except Exception as exc:
-            raise AnalyzerError("Nao foi possivel criar corpus temporario no RAG Engine.") from exc
+            _raise_rag_error("criar corpus temporario", self.settings, exc)
         return corpus.name
 
     def _delete_corpus_with_preview(self, corpus_name: str) -> None:
@@ -220,7 +222,7 @@ class RagEngineClient:
                         display_name=display_name,
                     )
             except Exception as exc:
-                raise AnalyzerError("Nao foi possivel enviar o documento ao RAG Engine.") from exc
+                _raise_rag_error("enviar documento ao RAG Engine", self.settings, exc)
 
     def _retrieve_contexts_with_preview(
         self,
@@ -241,7 +243,7 @@ class RagEngineClient:
                     similarity_top_k=self.settings.rag_top_k,
                 )
             except Exception as exc:
-                raise AnalyzerError("Nao foi possivel recuperar contexto do RAG Engine.") from exc
+                _raise_rag_error("recuperar contexto do RAG Engine", self.settings, exc)
             contexts.extend(
                 RetrievedContext(query=query, text=text)
                 for text in _extract_context_texts(response)
@@ -275,3 +277,39 @@ def _extract_context_texts(response) -> list[str]:
 def _compact_text(text: str, limit: int = 2500) -> str:
     compact = " ".join(text.split())
     return compact[:limit]
+
+
+def _raise_rag_error(action: str, settings: Settings, exc: Exception):
+    message = str(exc)
+    normalized = message.lower()
+
+    if isinstance(exc, DefaultCredentialsError) or "default credentials" in normalized:
+        raise AnalyzerError(
+            "Credenciais GCP nao encontradas para usar RAG/Gemini. O login Google do usuario "
+            "serve apenas para ler o Google Docs; o backend tambem precisa de Application "
+            "Default Credentials. Configure com `gcloud auth application-default login` ou "
+            "defina `GOOGLE_APPLICATION_CREDENTIALS` apontando para uma service account com "
+            "`roles/aiplatform.user`."
+        ) from exc
+
+    if "permission" in normalized or "403" in normalized or "unauthorized" in normalized:
+        raise AnalyzerError(
+            "Sem permissao para usar o RAG Engine neste projeto. Confirme que a credencial GCP "
+            f"tem `roles/aiplatform.user` em `{settings.gcp_project_id}` e que as APIs "
+            "necessarias estao habilitadas."
+        ) from exc
+
+    if "allowlist" in normalized or "not supported" in normalized or "region" in normalized:
+        raise AnalyzerError(
+            f"Nao foi possivel usar o RAG Engine na regiao `{settings.gcp_location}`. "
+            "Algumas regioes dos EUA exigem allowlist para projetos novos; tente "
+            "`GCP_LOCATION=europe-west4` ou solicite allowlist no GCP."
+        ) from exc
+
+    detail = _safe_error_detail(message)
+    raise AnalyzerError(f"Nao foi possivel {action}. Detalhe tecnico: {detail}") from exc
+
+
+def _safe_error_detail(message: str, limit: int = 500) -> str:
+    compact = " ".join(message.split())
+    return compact[:limit] if compact else "erro sem detalhe retornado pelo SDK"

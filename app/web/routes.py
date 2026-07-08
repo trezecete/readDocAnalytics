@@ -175,6 +175,15 @@ def _setup_warnings(oauth_ready: bool, gcp_ready: bool) -> list[str]:
         warnings.append("Configure GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET para usar login Google.")
     if settings.analyzer_backend == "gemini_rag" and not gcp_ready:
         warnings.append("Configure GCP_PROJECT_ID para ativar RAG Engine e Gemini.")
+    if settings.analyzer_backend == "gemini_rag" and settings.gcp_location in {
+        "us-central1",
+        "us-east1",
+        "us-east4",
+    }:
+        warnings.append(
+            "A regiao configurada para RAG pode exigir allowlist em projetos novos; "
+            "prefira europe-west4 para o prototipo."
+        )
     if settings.analyzer_backend == "local":
         warnings.append(
             "ANALYZER_BACKEND=local esta ativo; a analise usa heuristicas de prototipo."
