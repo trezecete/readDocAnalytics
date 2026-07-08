@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Resultado da analise{% endblock %}
+
+{% block content %}
+  <section class="result-header">
+    <div>
+      <p class="eyebrow">Relatorio gerado</p>
+      <h1>{{ report.document_title }}</h1>
+      <p class="lead">{{ report.executive_summary }}</p>
+    </div>
+    <div class="scoreboard">
+      <div>
+        <strong>{{ report.critical_count }}</strong>
+        <span>criticos</span>
+      </div>
+      <div>
+        <strong>{{ report.high_count }}</strong>
+        <span>altos</span>
+      </div>
+      <div>
+        <strong>{{ report.findings | length }}</strong>
+        <span>achados</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="actions">
+    <a class="button button-secondary" href="/">Nova analise</a>
+  </section>
+
+  <section class="findings">
+    {% for finding in report.findings %}
+      <article class="finding severity-{{ finding.severity }}">
+        <div class="finding-head">
+          <h2>{{ finding.title }}</h2>
+          <span>{{ finding.severity }}</span>
+        </div>
+        <dl>
+          <div><dt>Categoria</dt><dd>{{ finding.category }}</dd></div>
+          <div><dt>Tipo</dt><dd>{{ finding.finding_type }}</dd></div>
+          <div><dt>Confianca</dt><dd>{{ finding.confidence }}</dd></div>
+        </dl>
+        {% if finding.evidence %}
+          <blockquote>{{ finding.evidence }}</blockquote>
+        {% endif %}
+        <p>{{ finding.explanation }}</p>
+        <p><strong>Recomendacao:</strong> {{ finding.recommendation }}</p>
+      </article>
+    {% endfor %}
+  </section>
+
+  <section class="exports">
+    <details>
+      <summary>Relatorio em Markdown</summary>
+      <textarea readonly>{{ report_markdown }}</textarea>
+    </details>
+    <details>
+      <summary>Relatorio em JSON</summary>
+      <textarea readonly>{{ report_json }}</textarea>
+    </details>
+  </section>
+{% endblock %}
+

@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Analisar proposta{% endblock %}
+
+{% block content %}
+  <section class="intro">
+    <div>
+      <p class="eyebrow">Prototipo v1</p>
+      <h1>Revise propostas de IA direto do Google Docs.</h1>
+      <p class="lead">
+        Cole a URL de um documento privado autorizado pela sua conta Google e receba
+        um relatorio com riscos, lacunas, inconsistencias, evidencias e recomendacoes.
+      </p>
+    </div>
+    <div class="status-panel">
+      <span class="status {% if authenticated %}ok{% else %}warn{% endif %}">
+        {% if authenticated %}Google conectado{% else %}Login Google pendente{% endif %}
+      </span>
+      <span class="status {% if oauth_ready %}ok{% else %}warn{% endif %}">
+        OAuth {% if oauth_ready %}configurado{% else %}nao configurado{% endif %}
+      </span>
+      <span class="status {% if analyzer_backend == 'local' or gcp_ready %}ok{% else %}warn{% endif %}">
+        Analise {{ analyzer_backend }}
+      </span>
+    </div>
+  </section>
+
+  {% if setup_warnings %}
+    <section class="notice">
+      {% for warning in setup_warnings %}
+        <p>{{ warning }}</p>
+      {% endfor %}
+    </section>
+  {% endif %}
+
+  {% if error %}
+    <section class="alert">{{ error }}</section>
+  {% endif %}
+
+  <section class="workspace">
+    <div class="auth-box">
+      <h2>1. Conectar Google</h2>
+      <p>Escopo solicitado: <code>{{ oauth_scope }}</code></p>
+      {% if authenticated %}
+        <p class="muted">Sua sessao OAuth esta ativa neste processo da aplicacao.</p>
+      {% else %}
+        <a class="button {% if not oauth_ready %}button-disabled{% endif %}" href="/auth/login">
+          Entrar com Google
+        </a>
+      {% endif %}
+    </div>
+
+    <form class="analysis-form" method="post" action="/analyze">
+      <h2>2. Analisar documento</h2>
+      <label for="document_url">URL do Google Docs</label>
+      <input
+        id="document_url"
+        name="document_url"
+        type="url"
+        placeholder="https://docs.google.com/document/d/..."
+        required
+      >
+      <button class="button" type="submit" {% if not authenticated %}disabled{% endif %}>
+        Analisar proposta
+      </button>
+      {% if not authenticated %}
+        <p class="muted">Faca login para liberar a leitura do documento privado.</p>
+      {% endif %}
+    </form>
+  </section>
+{% endblock %}
+

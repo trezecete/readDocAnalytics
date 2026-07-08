@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Read Doc Analytics{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="/">Read Doc Analytics</a>
+      <div class="topbar-actions">
+        <span class="backend">Backend: {{ analyzer_backend }}</span>
+        {% if authenticated %}
+          <form method="post" action="/auth/logout">
+            <button class="button button-secondary" type="submit">Sair</button>
+          </form>
+        {% endif %}
+      </div>
+    </header>
+    <main class="page">
+      {% block content %}{% endblock %}
+    </main>
+  </body>
+</html>
+
