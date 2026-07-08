@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import re
 from math import ceil
+from typing import Any
+from unicodedata import normalize
 
 from app.analysis.models import AnalysisCoverage, AnalysisReport
 from app.config import Settings
@@ -102,13 +104,20 @@ class GeminiRagAnalyzer:
                 ),
             )
         except Exception as exc:
-            raise AnalyzerError("Nao foi possivel gerar analise com Gemini.") from exc
+            _raise_gemini_error(self.settings, exc)
 
-        payload = _extract_json(response.text or "")
+        if not response.text:
+            raise AnalyzerError(
+                "Gemini nao retornou texto analisavel. Tente novamente ou reduza o documento."
+            )
+
+        payload = _normalize_report_payload(_extract_json(response.text))
         try:
             report = AnalysisReport.model_validate(payload)
         except Exception as exc:
-            raise AnalyzerError("Gemini retornou um relatorio em formato invalido.") from exc
+            raise AnalyzerError(
+                "Gemini retornou um relatorio em formato invalido mesmo apos normalizacao."
+            ) from exc
 
         return report.model_copy(update={"analyzer_backend": self.backend_name})
 
@@ -148,6 +157,8 @@ Gere um JSON valido com este formato:
 
 Regras:
 - Achados do tipo risco e inconsistencia exigem evidencia literal do contexto.
+- O campo finding_type aceita somente: risco, inconsistencia, lacuna ou recomendacao.
+- Nao use finding_type=informativa; informativa e apenas uma severidade possivel.
 - Se uma informacao importante nao aparece, classifique como lacuna e use evidence=null.
 - Priorize riscos de dados, LGPD, escopo, metricas, custos, seguranca e operacao.
 - Nao inclua texto fora do JSON.
@@ -167,3 +178,115 @@ def _extract_json(text: str) -> dict:
     if not isinstance(payload, dict):
         raise AnalyzerError("Resposta do modelo precisa ser um objeto JSON.")
     return payload
+
+
+def _normalize_report_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    payload.setdefault("recommendations", [])
+    payload.setdefault("limitations", [])
+    payload.setdefault("analyzer_backend", "gemini_rag")
+
+    findings = payload.get("findings")
+    if not isinstance(findings, list):
+        payload["findings"] = []
+        return payload
+
+    for finding in findings:
+        if not isinstance(finding, dict):
+            continue
+        finding["severity"] = _coerce_label(
+            finding.get("severity"),
+            {
+                "critico": "critica",
+                "critica": "critica",
+                "alta": "alta",
+                "alto": "alta",
+                "media": "media",
+                "medio": "media",
+                "baixa": "baixa",
+                "baixo": "baixa",
+                "informativo": "informativa",
+                "informativa": "informativa",
+                "info": "informativa",
+            },
+            "media",
+        )
+        finding["finding_type"] = _coerce_label(
+            finding.get("finding_type"),
+            {
+                "risco": "risco",
+                "risk": "risco",
+                "inconsistencia": "inconsistencia",
+                "inconsistency": "inconsistencia",
+                "lacuna": "lacuna",
+                "gap": "lacuna",
+                "ausencia": "lacuna",
+                "recomendacao": "recomendacao",
+                "recommendation": "recomendacao",
+                "informativa": "recomendacao",
+                "informativo": "recomendacao",
+                "info": "recomendacao",
+            },
+            "lacuna",
+        )
+        finding["confidence"] = _coerce_label(
+            finding.get("confidence"),
+            {
+                "alta": "alta",
+                "alto": "alta",
+                "media": "media",
+                "medio": "media",
+                "baixa": "baixa",
+                "baixo": "baixa",
+            },
+            "media",
+        )
+    return payload
+
+
+def _coerce_label(value: Any, aliases: dict[str, str], default: str) -> str:
+    key = _normalize_label(value)
+    return aliases.get(key, default)
+
+
+def _normalize_label(value: Any) -> str:
+    if value is None:
+        return ""
+    text = str(value).strip().lower().replace("-", "_").replace(" ", "_")
+    text = normalize("NFKD", text)
+    text = "".join(character for character in text if ord(character) < 128)
+    return text
+
+
+def _raise_gemini_error(settings: Settings, exc: Exception):
+    message = str(exc)
+    normalized = message.lower()
+
+    if "404" in normalized or "not_found" in normalized or "was not found" in normalized:
+        raise AnalyzerError(
+            f"O modelo `{settings.gemini_model}` nao esta disponivel ou nao esta acessivel "
+            f"na regiao `{settings.gcp_location}` para o projeto `{settings.gcp_project_id}`. "
+            "Use `GEMINI_MODEL=gemini-2.5-flash` com `GCP_LOCATION=europe-west3`, ou escolha "
+            "um modelo disponivel nessa regiao no Vertex AI."
+        ) from exc
+
+    if "permission" in normalized or "403" in normalized or "unauthorized" in normalized:
+        raise AnalyzerError(
+            "Sem permissao para chamar Gemini no Vertex AI. Confirme que a service account "
+            "tem `roles/aiplatform.user` e que a Vertex AI API esta habilitada."
+        ) from exc
+
+    if "quota" in normalized or "429" in normalized or "rate" in normalized:
+        raise AnalyzerError(
+            "Gemini recusou a chamada por limite de quota ou taxa. Aguarde alguns minutos ou "
+            "verifique as quotas do modelo/regiao no Vertex AI."
+        ) from exc
+
+    detail = _safe_error_detail(message)
+    raise AnalyzerError(
+        f"Nao foi possivel gerar analise com Gemini. Detalhe tecnico: {detail}"
+    ) from exc
+
+
+def _safe_error_detail(message: str, limit: int = 500) -> str:
+    compact = " ".join(message.split())
+    return compact[:limit] if compact else "erro sem detalhe retornado pelo SDK"

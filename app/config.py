@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     gcp_project_id: str | None = None
     gcp_location: str = "europe-west4"
     rag_corpus_prefix: str = "proposal-review"
-    gemini_model: str = "gemini-3.5-flash"
+    gemini_model: str = "gemini-2.5-flash"
     embedding_model: str = "publishers/google/models/text-embedding-005"
 
     analyzer_backend: Literal["local", "gemini_rag"] = "local"
