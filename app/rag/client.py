@@ -333,6 +333,13 @@ def _raise_rag_error(action: str, settings: Settings, exc: Exception):
             "`roles/aiplatform.user`."
         ) from exc
 
+    if isinstance(exc, TimeoutError) or "did not complete within the timeout" in normalized:
+        raise AnalyzerError(
+            f"A operacao do RAG Engine para {action} excedeu o tempo limite do SDK. "
+            "A criacao do primeiro corpus pode demorar alguns minutos; tente novamente e "
+            "verifique no console do Vertex AI se ha operacoes pendentes."
+        ) from exc
+
     if "permission" in normalized or "403" in normalized or "unauthorized" in normalized:
         raise AnalyzerError(
             "Sem permissao para usar o RAG Engine neste projeto. Confirme que a credencial GCP "
@@ -344,7 +351,15 @@ def _raise_rag_error(action: str, settings: Settings, exc: Exception):
         raise AnalyzerError(
             f"Nao foi possivel usar o RAG Engine na regiao `{settings.gcp_location}`. "
             "Algumas regioes dos EUA exigem allowlist para projetos novos; tente "
-            "`GCP_LOCATION=europe-west4` ou solicite allowlist no GCP."
+            "`GCP_LOCATION=europe-west3` ou solicite allowlist no GCP."
+        ) from exc
+
+    if "'code': 13" in normalized or "internal" in normalized:
+        raise AnalyzerError(
+            f"O RAG Engine retornou erro interno na regiao `{settings.gcp_location}` ao "
+            f"tentar {action}. A service account pode estar correta, mas o servico regional "
+            "falhou. Tente `GCP_LOCATION=europe-west3`; se persistir, verifique operacoes "
+            "pendentes no Vertex AI e abra suporte com o operation id exibido nos logs."
         ) from exc
 
     detail = _safe_error_detail(message)

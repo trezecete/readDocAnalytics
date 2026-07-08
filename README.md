@@ -84,7 +84,7 @@ Para usar o caminho real de analise com RAG Engine:
 ```text
 ANALYZER_BACKEND=gemini_rag
 GCP_PROJECT_ID=seu-projeto
-GCP_LOCATION=europe-west4
+GCP_LOCATION=europe-west3
 GEMINI_MODEL=gemini-3.5-flash
 ```
 
@@ -97,7 +97,9 @@ gcloud auth application-default login
 gcloud config set project SEU_PROJETO
 ```
 
-Se o Google Cloud SDK nao estiver instalado, defina `GOOGLE_APPLICATION_CREDENTIALS` apontando para um JSON de service account com as permissoes minimas. Nao use o OAuth Client JSON com chave raiz `web` ou `installed`; esse arquivo serve para login Google do usuario e nao para autenticar o backend no GCP. Para projetos novos, prefira `GCP_LOCATION=europe-west4`; regioes como `us-east1`, `us-central1` e `us-east4` podem exigir allowlist para RAG Engine.
+Se o Google Cloud SDK nao estiver instalado, defina `GOOGLE_APPLICATION_CREDENTIALS` apontando para um JSON de service account com as permissoes minimas. Nao use o OAuth Client JSON com chave raiz `web` ou `installed`; esse arquivo serve para login Google do usuario e nao para autenticar o backend no GCP. Para este prototipo, `europe-west3` foi validada com criacao/delecao de corpus. Regioes como `us-east1`, `us-central1` e `us-east4` podem exigir allowlist para RAG Engine; `europe-west4` e GA, mas pode retornar erro interno dependendo do projeto/servico no momento.
+
+Arquivos de service account, como `sa-*.json`, ficam ignorados pelo Git. A primeira criacao de corpus no RAG Engine pode levar alguns minutos porque o SDK aguarda a operacao longa do GCP terminar.
 
 Permissao minima inicial para o usuario/service account que executa a app:
 
