@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Analise em andamento{% endblock %}
+
+{% block content %}
+  <section class="loading-shell" data-job-id="{{ job.job_id }}">
+    <div class="loading-copy">
+      <p class="eyebrow">Analise em andamento</p>
+      <h1>Estamos revisando sua proposta com cuidado.</h1>
+      <p class="lead">
+        A leitura pode levar alguns minutos em documentos maiores. Voce pode acompanhar
+        o tempo decorrido e a estimativa enquanto preparamos o relatorio.
+      </p>
+    </div>
+
+    <div class="progress-panel">
+      <div class="progress-heading">
+        <div>
+          <span class="progress-label" id="stageLabel">{{ job.message }}</span>
+          <strong id="progressText">{{ job.progress }}%</strong>
+        </div>
+        <p id="progressMessage">Preparando a revisao...</p>
+      </div>
+
+      <div class="progress-track" aria-label="Progresso da analise">
+        <div class="progress-fill" id="progressFill" style="width: {{ job.progress }}%"></div>
+      </div>
+
+      <dl class="time-grid">
+        <div>
+          <dt>Tempo decorrido</dt>
+          <dd id="elapsedTime">0s</dd>
+        </div>
+        <div>
+          <dt>Estimativa restante</dt>
+          <dd id="remainingTime">calculando</dd>
+        </div>
+      </dl>
+
+      <ol class="step-list" id="stepList">
+        <li data-stage="reading">Acessando documento</li>
+        <li data-stage="organizing">Organizando conteudo</li>
+        <li data-stage="preparing_context">Preparando base de consulta</li>
+        <li data-stage="retrieving_evidence">Consultando evidencias</li>
+        <li data-stage="generating_report">Gerando relatorio</li>
+        <li data-stage="finalizing">Finalizando arquivo</li>
+      </ol>
+
+      <div class="alert hidden" id="loadingError" role="alert"></div>
+      <a class="button button-secondary hidden" id="newAnalysisLink" href="/">Comecar nova analise</a>
+    </div>
+  </section>
+
+  <script>
+    const statusUrl = "/analysis/jobs/{{ job.job_id }}/status";
+    const stageOrder = [
+      "preparing",
+      "reading",
+      "organizing",
+      "preparing_context",
+      "retrieving_evidence",
+      "generating_report",
+      "finalizing",
+      "completed"
+    ];
+
+    const stageLabel = document.getElementById("stageLabel");
+    const progressText = document.getElementById("progressText");
+    const progressFill = document.getElementById("progressFill");
+    const progressMessage = document.getElementById("progressMessage");
+    const elapsedTime = document.getElementById("elapsedTime");
+    const remainingTime = document.getElementById("remainingTime");
+    const loadingError = document.getElementById("loadingError");
+    const newAnalysisLink = document.getElementById("newAnalysisLink");
+    const steps = Array.from(document.querySelectorAll("#stepList li"));
+
+    function formatSeconds(value) {
+      const seconds = Math.max(0, Number(value) || 0);
+      if (seconds < 60) {
+        return `${seconds}s`;
+      }
+      const minutes = Math.floor(seconds / 60);
+      const rest = seconds % 60;
+      return rest ? `${minutes}min ${rest}s` : `${minutes}min`;
+    }
+
+    function updateSteps(stage) {
+      const currentIndex = stageOrder.indexOf(stage);
+      steps.forEach((step) => {
+        const stepIndex = stageOrder.indexOf(step.dataset.stage);
+        step.classList.toggle("is-done", stepIndex > -1 && stepIndex < currentIndex);
+        step.classList.toggle("is-active", step.dataset.stage === stage);
+      });
+    }
+
+    async function refreshStatus() {
+      try {
+        const response = await fetch(statusUrl, {headers: {"Accept": "application/json"}});
+        const data = await response.json();
+
+        stageLabel.textContent = data.stage_label || "Preparando analise";
+        progressText.textContent = `${data.progress || 0}%`;
+        progressFill.style.width = `${data.progress || 0}%`;
+        progressMessage.textContent = data.message || "Acompanhando andamento...";
+        elapsedTime.textContent = formatSeconds(data.elapsed_seconds);
+        remainingTime.textContent = data.remaining_seconds > 0
+          ? formatSeconds(data.remaining_seconds)
+          : "quase pronto";
+        updateSteps(data.stage);
+
+        if (data.status === "completed" && data.result_url) {
+          window.location.href = data.result_url;
+          return;
+        }
+
+        if (data.status === "failed") {
+          loadingError.textContent = data.error || "Nao foi possivel concluir a analise.";
+          loadingError.classList.remove("hidden");
+          newAnalysisLink.classList.remove("hidden");
+          return;
+        }
+
+        window.setTimeout(refreshStatus, 1800);
+      } catch (error) {
+        progressMessage.textContent = "Ainda estamos tentando atualizar o andamento...";
+        window.setTimeout(refreshStatus, 3000);
+      }
+    }
+
+    refreshStatus();
+  </script>
+{% endblock %}

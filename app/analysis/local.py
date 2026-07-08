@@ -1,4 +1,5 @@
 import re
+from collections.abc import Callable
 from math import ceil
 
 from app.analysis.models import AnalysisCoverage, AnalysisReport, Finding
@@ -25,7 +26,14 @@ class LocalHeuristicAnalyzer:
 
     backend_name = "local"
 
-    def analyze(self, document: DocumentContent) -> AnalysisReport:
+    def analyze(
+        self,
+        document: DocumentContent,
+        progress: Callable[[str], None] | None = None,
+    ) -> AnalysisReport:
+        if progress:
+            progress("generating_report")
+
         text = document.markdown
         findings: list[Finding] = []
 
@@ -44,8 +52,7 @@ class LocalHeuristicAnalyzer:
                         "com Gemini/RAG ainda e recomendada para uma avaliacao mais profunda."
                     ),
                     recommendation=(
-                        "Ative ANALYZER_BACKEND=gemini_rag quando as credenciais GCP estiverem "
-                        "configuradas."
+                        "Use a analise aprofundada com IA quando o ambiente estiver preparado."
                     ),
                     confidence="media",
                 )
@@ -62,14 +69,14 @@ class LocalHeuristicAnalyzer:
             ],
             limitations=[
                 (
-                    "Modo local: isto e uma triagem deterministica, nao uma analise cautelosa "
-                    "com IA/RAG."
+                    "Triagem rapida: esta leitura usa regras simples e nao substitui uma "
+                    "analise aprofundada."
                 ),
                 "Imagens, comentarios e sugestoes do Google Docs nao sao analisados nesta versao.",
             ],
             analyzer_backend=self.backend_name,
             coverage=AnalysisCoverage(
-                mode_label="Triagem local por heuristicas",
+                mode_label="Triagem rapida por regras",
                 completeness_level="triagem",
                 document_chars=document.char_count,
                 document_bytes=document.byte_count,
@@ -81,7 +88,7 @@ class LocalHeuristicAnalyzer:
                     "mas sem raciocinio semantico profundo."
                 ),
                 caveat=(
-                    "Rapido por desenho: nao usa Gemini, nao cria corpus RAG e nao deve ser "
+                    "Rapido por desenho: serve para uma primeira leitura e nao deve ser "
                     "tratado como revisao completa."
                 ),
             ),

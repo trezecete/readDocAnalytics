@@ -3,30 +3,53 @@
 {% block title %}Analisar proposta{% endblock %}
 
 {% block content %}
-  <section class="intro">
-    <div>
+  <section class="hero">
+    <div class="hero-copy">
       <p class="eyebrow">Prototipo v1</p>
-      <h1>Revise propostas de IA direto do Google Docs.</h1>
+      <h1>Revise uma proposta de IA antes de aprovar o desenvolvimento.</h1>
       <p class="lead">
-        Cole a URL de um documento privado autorizado pela sua conta Google e receba
-        um relatorio com riscos, lacunas, inconsistencias, evidencias e recomendacoes.
+        Cole a URL de um Google Docs privado e receba uma leitura executiva com
+        riscos, lacunas, inconsistencias, evidencias e proximas acoes.
       </p>
+      <div class="hero-actions">
+        {% if authenticated %}
+          <a class="button" href="#documento">Analisar documento</a>
+        {% else %}
+          <a class="button {% if not oauth_ready %}button-disabled{% endif %}" href="/auth/login">
+            Entrar com Google
+          </a>
+        {% endif %}
+        <span class="privacy-note">Usamos sua permissao apenas para ler o documento escolhido.</span>
+      </div>
     </div>
-    <div class="status-panel">
-      <span class="status {% if authenticated %}ok{% else %}warn{% endif %}">
-        {% if authenticated %}Google conectado{% else %}Login Google pendente{% endif %}
-      </span>
-      <span class="status {% if oauth_ready %}ok{% else %}warn{% endif %}">
-        OAuth {% if oauth_ready %}configurado{% else %}nao configurado{% endif %}
-      </span>
-      <span class="status {% if analyzer_backend == 'local' or gcp_ready %}ok{% else %}warn{% endif %}">
-        Analise {{ analyzer_backend }}
-      </span>
-    </div>
+
+    <aside class="readiness-panel" aria-label="Preparacao da analise">
+      <div class="readiness-item {% if authenticated %}is-ok{% else %}is-warn{% endif %}">
+        <span class="status-dot"></span>
+        <div>
+          <strong>{% if authenticated %}Conexao com Google pronta{% else %}Conecte sua conta Google{% endif %}</strong>
+          <p>{% if authenticated %}Voce ja pode escolher o documento.{% else %}Necessario para ler Google Docs privados.{% endif %}</p>
+        </div>
+      </div>
+      <div class="readiness-item {% if oauth_ready %}is-ok{% else %}is-warn{% endif %}">
+        <span class="status-dot"></span>
+        <div>
+          <strong>{% if oauth_ready %}Aplicacao preparada{% else %}Configuracao pendente{% endif %}</strong>
+          <p>{% if oauth_ready %}O fluxo de entrada com Google esta disponivel.{% else %}Complete a conexao com Google no ambiente.{% endif %}</p>
+        </div>
+      </div>
+      <div class="readiness-item {% if gcp_ready %}is-ok{% else %}is-warn{% endif %}">
+        <span class="status-dot"></span>
+        <div>
+          <strong>{{ analysis_mode }}</strong>
+          <p>{% if gcp_ready %}Revisao com busca de evidencias e geracao do relatorio.{% else %}A revisao rapida local continua disponivel para testes.{% endif %}</p>
+        </div>
+      </div>
+    </aside>
   </section>
 
   {% if setup_warnings %}
-    <section class="notice">
+    <section class="notice" aria-label="Avisos de preparacao">
       {% for warning in setup_warnings %}
         <p>{{ warning }}</p>
       {% endfor %}
@@ -34,24 +57,26 @@
   {% endif %}
 
   {% if error %}
-    <section class="alert">{{ error }}</section>
+    <section class="alert" role="alert">{{ error }}</section>
   {% endif %}
 
-  <section class="workspace">
-    <div class="auth-box">
-      <h2>1. Conectar Google</h2>
-      <p>Escopo solicitado: <code>{{ oauth_scope }}</code></p>
-      {% if authenticated %}
-        <p class="muted">Sua sessao OAuth esta ativa neste processo da aplicacao.</p>
-      {% else %}
-        <a class="button {% if not oauth_ready %}button-disabled{% endif %}" href="/auth/login">
-          Entrar com Google
-        </a>
-      {% endif %}
+  <section class="workspace" id="documento">
+    <div class="explain-panel">
+      <h2>O que o relatorio entrega</h2>
+      <ul class="check-list">
+        <li>Resumo da proposta e pontos que merecem decisao.</li>
+        <li>Alertas classificados por impacto, com recomendacao objetiva.</li>
+        <li>Evidencias do proprio documento sempre que houver afirmacao de risco.</li>
+        <li>Lacunas marcadas como ausencia de informacao, sem inventar fatos.</li>
+      </ul>
+      <p class="muted">Nesta versao, analisamos ate {{ document_limit_label }} de texto organizado.</p>
     </div>
 
-    <form class="analysis-form" method="post" action="/analyze">
-      <h2>2. Analisar documento</h2>
+    <form class="analysis-form" method="post" action="/analysis/jobs">
+      <div>
+        <p class="eyebrow">Documento</p>
+        <h2>Comecar revisao</h2>
+      </div>
       <label for="document_url">URL do Google Docs</label>
       <input
         id="document_url"
@@ -61,12 +86,13 @@
         required
       >
       <button class="button" type="submit" {% if not authenticated %}disabled{% endif %}>
-        Analisar proposta
+        Comecar analise
       </button>
       {% if not authenticated %}
-        <p class="muted">Faca login para liberar a leitura do documento privado.</p>
+        <p class="muted">Entre com Google para liberar a leitura do documento privado.</p>
+      {% else %}
+        <p class="muted">O prototipo nao salva o conteudo do documento no servidor.</p>
       {% endif %}
     </form>
   </section>
 {% endblock %}
-

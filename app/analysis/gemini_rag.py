@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Callable
 from math import ceil
 from typing import Any
 from unicodedata import normalize
@@ -21,7 +22,11 @@ class GeminiRagAnalyzer:
         self.settings = settings
         self.rag = RagEngineClient(settings)
 
-    def analyze(self, document: DocumentContent) -> AnalysisReport:
+    def analyze(
+        self,
+        document: DocumentContent,
+        progress: Callable[[str], None] | None = None,
+    ) -> AnalysisReport:
         queries = [
             "objetivo de negocio, problema, resultados esperados",
             "escopo, entregaveis, exclusoes e premissas",
@@ -30,9 +35,12 @@ class GeminiRagAnalyzer:
             "seguranca, integracoes, operacao, custos, monitoramento e suporte",
         ]
 
+        _notify_progress(progress, "preparing_context")
         with self.rag.temporary_corpus() as corpus_name:
             self.rag.upload_text(corpus_name, document.markdown, document.title)
+            _notify_progress(progress, "retrieving_evidence")
             contexts = self.rag.retrieve_contexts(corpus_name, queries)
+            _notify_progress(progress, "generating_report")
             report = self._generate_report(document, contexts)
             return report.model_copy(
                 update={
@@ -246,6 +254,11 @@ def _normalize_report_payload(payload: dict[str, Any]) -> dict[str, Any]:
 def _coerce_label(value: Any, aliases: dict[str, str], default: str) -> str:
     key = _normalize_label(value)
     return aliases.get(key, default)
+
+
+def _notify_progress(progress: Callable[[str], None] | None, stage: str) -> None:
+    if progress:
+        progress(stage)
 
 
 def _normalize_label(value: Any) -> str:

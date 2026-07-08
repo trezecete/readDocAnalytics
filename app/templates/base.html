@@ -8,12 +8,15 @@
   </head>
   <body>
     <header class="topbar">
-      <a class="brand" href="/">Read Doc Analytics</a>
+      <a class="brand" href="/">
+        <span class="brand-mark">RDA</span>
+        <span>Read Doc Analytics</span>
+      </a>
       <div class="topbar-actions">
-        <span class="backend">Backend: {{ analyzer_backend }}</span>
+        <span class="topbar-copy">Revisao assistida de propostas de IA</span>
         {% if authenticated %}
           <form method="post" action="/auth/logout">
-            <button class="button button-secondary" type="submit">Sair</button>
+            <button class="button button-ghost" type="submit">Sair</button>
           </form>
         {% endif %}
       </div>
@@ -23,4 +26,3 @@
     </main>
   </body>
 </html>
-

@@ -21,6 +21,7 @@ dependencies = [
   "google-auth-oauthlib>=1.2.2",
   "google-cloud-aiplatform>=1.160.0",
   "google-genai>=1.27.0",
+  "python-docx>=1.2.0",
 ]
 
 [project.optional-dependencies]

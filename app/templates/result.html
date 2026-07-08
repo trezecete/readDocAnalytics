@@ -1,82 +1,185 @@
 {% extends "base.html" %}
 
-{% block title %}Resultado da analise{% endblock %}
+{% block title %}Relatorio da analise{% endblock %}
 
 {% block content %}
-  <section class="result-header">
+  <section class="result-hero">
     <div>
-      <p class="eyebrow">Relatorio gerado</p>
+      <p class="eyebrow">Relatorio pronto</p>
       <h1>{{ report.document_title }}</h1>
       <p class="lead">{{ report.executive_summary }}</p>
     </div>
-    <div class="scoreboard">
-      <div>
-        <strong>{{ report.critical_count }}</strong>
-        <span>criticos</span>
-      </div>
-      <div>
-        <strong>{{ report.high_count }}</strong>
-        <span>altos</span>
-      </div>
-      <div>
-        <strong>{{ report.findings | length }}</strong>
-        <span>achados</span>
-      </div>
+    <div class="report-actions">
+      <a class="button" href="/analysis/jobs/{{ job.job_id }}/download.docx">Baixar relatorio Word</a>
+      <a class="button button-secondary" href="/">Nova analise</a>
     </div>
   </section>
 
-  <section class="actions">
-    <a class="button button-secondary" href="/">Nova analise</a>
+  <section class="scoreboard" aria-label="Resumo dos alertas">
+    <div class="score-card severity-critica">
+      <strong>{{ presenter.severity_counts["critica"] }}</strong>
+      <span>Criticos</span>
+    </div>
+    <div class="score-card severity-alta">
+      <strong>{{ presenter.severity_counts["alta"] }}</strong>
+      <span>Altos</span>
+    </div>
+    <div class="score-card severity-media">
+      <strong>{{ presenter.severity_counts["media"] }}</strong>
+      <span>Medios</span>
+    </div>
+    <div class="score-card">
+      <strong>{{ presenter.gap_findings | length }}</strong>
+      <span>Lacunas</span>
+    </div>
   </section>
 
-  {% if report.coverage %}
-    <section class="coverage {% if report.coverage.completeness_level == 'triagem' %}coverage-warning{% endif %}">
-      <div>
-        <p class="eyebrow">Cobertura da analise</p>
-        <h2>{{ report.coverage.mode_label }}</h2>
-        <p>{{ report.coverage.caveat }}</p>
+  <section class="report-section">
+    <p class="eyebrow">Resumo da proposta</p>
+    <h2>O que a leitura indica</h2>
+    <p>{{ report.executive_summary }}</p>
+    <div class="next-step">
+      <span>Proximo passo recomendado</span>
+      <strong>{{ presenter.primary_next_step }}</strong>
+    </div>
+  </section>
+
+  <section class="report-section">
+    <p class="eyebrow">Prioridade</p>
+    <h2>Principais pontos de atencao</h2>
+    {% if presenter.priority_findings %}
+      <div class="finding-list">
+        {% for finding in presenter.priority_findings %}
+          <article class="finding severity-{{ finding.severity }}">
+            <div class="finding-head">
+              <h3>{{ finding.title }}</h3>
+              <span class="badge">{{ presenter.severity_labels[finding.severity] }}</span>
+            </div>
+            <p>{{ finding.explanation }}</p>
+            <p><strong>Acao sugerida:</strong> {{ finding.recommendation }}</p>
+            {% if finding.evidence %}
+              <blockquote>{{ finding.evidence }}</blockquote>
+            {% endif %}
+          </article>
+        {% endfor %}
       </div>
-      <dl>
-        <div><dt>Nivel</dt><dd>{{ report.coverage.completeness_level }}</dd></div>
-        <div><dt>Caracteres lidos</dt><dd>{{ report.coverage.document_chars }}</dd></div>
-        <div><dt>Tamanho</dt><dd>{{ "%.1f"|format(report.coverage.document_bytes / 1000000) }} MB</dd></div>
-        <div><dt>Texto varrido/indexado</dt><dd>{{ "%.0f"|format(report.coverage.text_scanned_percent) }}%</dd></div>
-        <div><dt>Partes estimadas</dt><dd>{{ report.coverage.estimated_chunks }}</dd></div>
-      </dl>
-      <p><strong>Categorias:</strong> {{ report.coverage.categories_checked | join(", ") }}</p>
-      <p><strong>Politica de evidencia:</strong> {{ report.coverage.evidence_policy }}</p>
+    {% else %}
+      <p class="muted">Nao foram encontrados riscos criticos ou altos nesta leitura.</p>
+    {% endif %}
+  </section>
+
+  <section class="report-section">
+    <p class="eyebrow">Decisao segura</p>
+    <h2>Lacunas que precisam de confirmacao</h2>
+    {% if presenter.gap_findings %}
+      <div class="compact-list">
+        {% for finding in presenter.gap_findings %}
+          <article class="compact-item severity-{{ finding.severity }}">
+            <strong>{{ finding.title }}</strong>
+            <p>{{ finding.recommendation }}</p>
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="muted">A analise nao marcou lacunas impeditivas.</p>
+    {% endif %}
+  </section>
+
+  <section class="report-section">
+    <p class="eyebrow">Alertas por impacto</p>
+    <h2>Achados detalhados</h2>
+    {% for severity in presenter.severity_order %}
+      {% set findings = presenter.grouped_findings.get(severity, []) %}
+      {% if findings %}
+        <div class="severity-group">
+          <h3>{{ presenter.severity_labels[severity] }}</h3>
+          <div class="finding-list">
+            {% for finding in findings %}
+              <article class="finding severity-{{ finding.severity }}">
+                <div class="finding-head">
+                  <h4>{{ finding.title }}</h4>
+                  <span class="badge">{{ presenter.finding_type_labels[finding.finding_type] }}</span>
+                </div>
+                <dl class="meta-grid">
+                  <div><dt>Categoria</dt><dd>{{ finding.category }}</dd></div>
+                  <div><dt>Confianca</dt><dd>{{ finding.confidence }}</dd></div>
+                </dl>
+                {% if finding.evidence %}
+                  <blockquote>
+                    <span>Evidencia encontrada</span>
+                    {{ finding.evidence }}
+                  </blockquote>
+                {% else %}
+                  <p class="missing-evidence">Lacuna: a informacao esperada nao apareceu de forma clara no documento.</p>
+                {% endif %}
+                <p>{{ finding.explanation }}</p>
+                <p><strong>Recomendacao:</strong> {{ finding.recommendation }}</p>
+              </article>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+    {% endfor %}
+  </section>
+
+  {% if presenter.evidence_findings %}
+    <section class="report-section">
+      <p class="eyebrow">Rastreabilidade</p>
+      <h2>Evidencias encontradas no documento</h2>
+      <div class="evidence-list">
+        {% for finding in presenter.evidence_findings %}
+          <blockquote>
+            <span>{{ finding.title }}</span>
+            {{ finding.evidence }}
+          </blockquote>
+        {% endfor %}
+      </div>
     </section>
   {% endif %}
 
-  <section class="findings">
-    {% for finding in report.findings %}
-      <article class="finding severity-{{ finding.severity }}">
-        <div class="finding-head">
-          <h2>{{ finding.title }}</h2>
-          <span>{{ finding.severity }}</span>
-        </div>
-        <dl>
-          <div><dt>Categoria</dt><dd>{{ finding.category }}</dd></div>
-          <div><dt>Tipo</dt><dd>{{ finding.finding_type }}</dd></div>
-          <div><dt>Confianca</dt><dd>{{ finding.confidence }}</dd></div>
-        </dl>
-        {% if finding.evidence %}
-          <blockquote>{{ finding.evidence }}</blockquote>
-        {% endif %}
-        <p>{{ finding.explanation }}</p>
-        <p><strong>Recomendacao:</strong> {{ finding.recommendation }}</p>
-      </article>
-    {% endfor %}
+  <section class="report-section">
+    <p class="eyebrow">Plano de acao</p>
+    <h2>Recomendacoes para seguir</h2>
+    <ol class="action-list">
+      {% for recommendation in report.recommendations %}
+        <li>{{ recommendation }}</li>
+      {% endfor %}
+    </ol>
+  </section>
+
+  {% if report.coverage %}
+    <section class="report-section muted-section">
+      <p class="eyebrow">Cobertura da leitura</p>
+      <h2>Como interpretar este resultado</h2>
+      <dl class="coverage-grid">
+        <div><dt>Modo</dt><dd>{{ presenter.mode_label }}</dd></div>
+        <div><dt>Texto lido</dt><dd>{{ report.coverage.document_chars }} caracteres</dd></div>
+        <div><dt>Partes estimadas</dt><dd>{{ report.coverage.estimated_chunks }}</dd></div>
+        <div><dt>Cobertura</dt><dd>{{ "%.0f"|format(report.coverage.text_scanned_percent) }}%</dd></div>
+      </dl>
+      <p>Esta revisao automatizada ajuda a encontrar riscos e lacunas, mas nao substitui a validacao dos responsaveis tecnicos, juridicos e de negocio.</p>
+    </section>
+  {% endif %}
+
+  <section class="report-section">
+    <p class="eyebrow">Limitacoes</p>
+    <h2>O que ainda precisa de cuidado humano</h2>
+    <ul class="check-list">
+      {% for limitation in report.limitations %}
+        <li>{{ limitation }}</li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <section class="report-section report-footer-actions">
+    <a class="button" href="/analysis/jobs/{{ job.job_id }}/download.docx">Baixar relatorio Word</a>
+    <a class="button button-secondary" href="/">Analisar outro documento</a>
   </section>
 
   <section class="exports">
     <details>
-      <summary>Relatorio em Markdown</summary>
+      <summary>Ver versao em texto</summary>
       <textarea readonly>{{ report_markdown }}</textarea>
-    </details>
-    <details>
-      <summary>Relatorio em JSON</summary>
-      <textarea readonly>{{ report_json }}</textarea>
     </details>
   </section>
 {% endblock %}
