@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import json
 import re
+from math import ceil
 
-from app.analysis.models import AnalysisReport
+from app.analysis.models import AnalysisCoverage, AnalysisReport
 from app.config import Settings
 from app.docs_reader.models import DocumentContent
 from app.errors import AnalyzerError
@@ -30,7 +31,41 @@ class GeminiRagAnalyzer:
         with self.rag.temporary_corpus() as corpus_name:
             self.rag.upload_text(corpus_name, document.markdown, document.title)
             contexts = self.rag.retrieve_contexts(corpus_name, queries)
-            return self._generate_report(document, contexts)
+            report = self._generate_report(document, contexts)
+            return report.model_copy(
+                update={
+                    "coverage": AnalysisCoverage(
+                        mode_label="Analise assistida por RAG Engine e Gemini",
+                        completeness_level="rag_assistida",
+                        document_chars=document.char_count,
+                        document_bytes=document.byte_count,
+                        text_scanned_percent=100.0,
+                        estimated_chunks=max(
+                            1,
+                            ceil(document.char_count / self.settings.rag_chunk_size),
+                        ),
+                        categories_checked=[
+                            "Objetivo",
+                            "Escopo",
+                            "Dados",
+                            "Privacidade",
+                            "Avaliacao",
+                            "Aceite",
+                            "Custos",
+                            "Operacao",
+                            "Seguranca",
+                        ],
+                        evidence_policy=(
+                            "O documento normalizado foi enviado ao RAG; o Gemini recebeu "
+                            f"{len(contexts)} trechos recuperados por consultas tematicas."
+                        ),
+                        caveat=(
+                            "RAG aumenta cobertura e rastreabilidade, mas ainda exige revisao "
+                            "humana para aprovar proposta tecnica."
+                        ),
+                    )
+                }
+            )
 
     def _generate_report(
         self,
@@ -132,4 +167,3 @@ def _extract_json(text: str) -> dict:
     if not isinstance(payload, dict):
         raise AnalyzerError("Resposta do modelo precisa ser um objeto JSON.")
     return payload
-

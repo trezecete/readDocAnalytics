@@ -186,13 +186,38 @@ def _report_to_markdown(report: AnalysisReport) -> str:
     lines = [
         f"# Relatorio de analise: {report.document_title}",
         "",
+        "## Cobertura da analise",
+        "",
+    ]
+    if report.coverage:
+        lines.extend(
+            [
+                f"- Modo: {report.coverage.mode_label}",
+                f"- Nivel: {report.coverage.completeness_level}",
+                f"- Caracteres lidos: {report.coverage.document_chars}",
+                f"- Tamanho normalizado: {_format_bytes(report.coverage.document_bytes)}",
+                f"- Texto varrido/indexado: {report.coverage.text_scanned_percent:.0f}%",
+                f"- Partes estimadas: {report.coverage.estimated_chunks}",
+                "- Categorias verificadas: "
+                + ", ".join(report.coverage.categories_checked),
+                f"- Politica de evidencia: {report.coverage.evidence_policy}",
+                f"- Observacao: {report.coverage.caveat}",
+                "",
+            ]
+        )
+    else:
+        lines.extend(["- Cobertura nao informada por esta versao do analisador.", ""])
+
+    lines.extend(
+        [
         "## Resumo executivo",
         "",
         report.executive_summary,
         "",
         "## Achados",
         "",
-    ]
+        ]
+    )
     for finding in report.findings:
         lines.extend(
             [

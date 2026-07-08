@@ -1,9 +1,19 @@
-from __future__ import annotations
-
 import re
+from math import ceil
 
-from app.analysis.models import AnalysisReport, Finding
+from app.analysis.models import AnalysisCoverage, AnalysisReport, Finding
 from app.docs_reader.models import DocumentContent
+
+LOCAL_CATEGORIES = [
+    "Objetivo",
+    "Escopo",
+    "Dados",
+    "Privacidade",
+    "Avaliacao",
+    "Aceite",
+    "Custos",
+    "Cronograma",
+]
 
 
 class LocalHeuristicAnalyzer:
@@ -52,12 +62,29 @@ class LocalHeuristicAnalyzer:
             ],
             limitations=[
                 (
-                    "Este modo local usa heuristicas deterministicas e nao substitui a revisao "
-                    "Gemini/RAG."
+                    "Modo local: isto e uma triagem deterministica, nao uma analise cautelosa "
+                    "com IA/RAG."
                 ),
                 "Imagens, comentarios e sugestoes do Google Docs nao sao analisados nesta versao.",
             ],
             analyzer_backend=self.backend_name,
+            coverage=AnalysisCoverage(
+                mode_label="Triagem local por heuristicas",
+                completeness_level="triagem",
+                document_chars=document.char_count,
+                document_bytes=document.byte_count,
+                text_scanned_percent=100.0,
+                estimated_chunks=max(1, ceil(document.char_count / 8_000)),
+                categories_checked=LOCAL_CATEGORIES,
+                evidence_policy=(
+                    "Todo o Markdown normalizado foi varrido por regras e palavras-chave, "
+                    "mas sem raciocinio semantico profundo."
+                ),
+                caveat=(
+                    "Rapido por desenho: nao usa Gemini, nao cria corpus RAG e nao deve ser "
+                    "tratado como revisao completa."
+                ),
+            ),
         )
 
     def _missing_section_findings(self, text: str) -> list[Finding]:

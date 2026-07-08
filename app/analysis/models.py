@@ -7,6 +7,18 @@ FindingType = Literal["risco", "inconsistencia", "lacuna", "recomendacao"]
 Confidence = Literal["alta", "media", "baixa"]
 
 
+class AnalysisCoverage(BaseModel):
+    mode_label: str
+    completeness_level: Literal["triagem", "rag_assistida", "completa_nao_garantida"]
+    document_chars: int = Field(ge=0)
+    document_bytes: int = Field(ge=0)
+    text_scanned_percent: float = Field(ge=0, le=100)
+    estimated_chunks: int = Field(ge=1)
+    categories_checked: list[str]
+    evidence_policy: str
+    caveat: str
+
+
 class Finding(BaseModel):
     title: str = Field(min_length=3)
     category: str = Field(min_length=3)
@@ -31,6 +43,7 @@ class AnalysisReport(BaseModel):
     recommendations: list[str]
     limitations: list[str]
     analyzer_backend: str
+    coverage: AnalysisCoverage | None = None
 
     @property
     def critical_count(self) -> int:
@@ -39,4 +52,3 @@ class AnalysisReport(BaseModel):
     @property
     def high_count(self) -> int:
         return sum(1 for finding in self.findings if finding.severity == "alta")
-

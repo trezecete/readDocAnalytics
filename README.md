@@ -29,6 +29,8 @@ Browser
 
 No modo local padrao, a etapa RAG/Gemini e substituida por um analisador heuristico. Isso permite validar UI, OAuth, leitura e normalizacao antes de ativar custos e permissoes GCP.
 
+Importante: `ANALYZER_BACKEND=local` e apenas uma triagem rapida. Para uma revisao cautelosa com IA, use `ANALYZER_BACKEND=gemini_rag` com credenciais GCP configuradas. O relatorio mostra uma secao de cobertura indicando o modo usado, tamanho do documento, percentual de texto varrido/indexado e limitacoes.
+
 ## Configuracao local
 
 1. Crie e ative um ambiente virtual:

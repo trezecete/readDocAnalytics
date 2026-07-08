@@ -29,6 +29,25 @@
     <a class="button button-secondary" href="/">Nova analise</a>
   </section>
 
+  {% if report.coverage %}
+    <section class="coverage {% if report.coverage.completeness_level == 'triagem' %}coverage-warning{% endif %}">
+      <div>
+        <p class="eyebrow">Cobertura da analise</p>
+        <h2>{{ report.coverage.mode_label }}</h2>
+        <p>{{ report.coverage.caveat }}</p>
+      </div>
+      <dl>
+        <div><dt>Nivel</dt><dd>{{ report.coverage.completeness_level }}</dd></div>
+        <div><dt>Caracteres lidos</dt><dd>{{ report.coverage.document_chars }}</dd></div>
+        <div><dt>Tamanho</dt><dd>{{ "%.1f"|format(report.coverage.document_bytes / 1000000) }} MB</dd></div>
+        <div><dt>Texto varrido/indexado</dt><dd>{{ "%.0f"|format(report.coverage.text_scanned_percent) }}%</dd></div>
+        <div><dt>Partes estimadas</dt><dd>{{ report.coverage.estimated_chunks }}</dd></div>
+      </dl>
+      <p><strong>Categorias:</strong> {{ report.coverage.categories_checked | join(", ") }}</p>
+      <p><strong>Politica de evidencia:</strong> {{ report.coverage.evidence_policy }}</p>
+    </section>
+  {% endif %}
+
   <section class="findings">
     {% for finding in report.findings %}
       <article class="finding severity-{{ finding.severity }}">
@@ -61,4 +80,3 @@
     </details>
   </section>
 {% endblock %}
-
