@@ -4,10 +4,11 @@ import os
 from typing import Any
 
 from google_auth_oauthlib.flow import Flow
+from oauthlib.oauth2 import OAuth2Error
 from pydantic import BaseModel
 
 from app.config import Settings
-from app.errors import ConfigurationError
+from app.errors import ConfigurationError, UserFacingError
 
 
 class CredentialsData(BaseModel):
@@ -23,19 +24,37 @@ class GoogleOAuthClient:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
 
-    def authorization_url(self, state: str) -> str:
+    def authorization_url(self, state: str) -> tuple[str, str]:
         flow = self._build_flow()
         authorization_url, _ = flow.authorization_url(
             access_type="online",
-            include_granted_scopes="true",
             state=state,
             prompt="consent",
         )
-        return authorization_url
+        if not flow.code_verifier:
+            raise ConfigurationError("Nao foi possivel iniciar o fluxo OAuth com PKCE.")
+        return authorization_url, flow.code_verifier
 
-    def fetch_credentials(self, authorization_response: str) -> CredentialsData:
-        flow = self._build_flow()
-        flow.fetch_token(authorization_response=authorization_response)
+    def fetch_credentials(
+        self,
+        authorization_response: str,
+        code_verifier: str | None,
+    ) -> CredentialsData:
+        if not code_verifier:
+            raise UserFacingError(
+                "Sessao OAuth incompleta. Recomece o login para gerar um novo verificador PKCE.",
+                status_code=400,
+            )
+
+        flow = self._build_flow(code_verifier=code_verifier)
+        try:
+            flow.fetch_token(authorization_response=authorization_response)
+        except OAuth2Error as exc:
+            raise UserFacingError(
+                "O Google recusou a troca do codigo OAuth. Recomece o login e confirme o "
+                "redirect URI configurado.",
+                status_code=400,
+            ) from exc
         credentials = flow.credentials
         return CredentialsData(
             token=credentials.token,
@@ -46,7 +65,7 @@ class GoogleOAuthClient:
             scopes=list(credentials.scopes or self.settings.docs_oauth_scopes),
         )
 
-    def _build_flow(self) -> Flow:
+    def _build_flow(self, code_verifier: str | None = None) -> Flow:
         if not self.settings.google_client_id or not self.settings.google_client_secret:
             raise ConfigurationError(
                 "OAuth Google nao configurado. Defina GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET.",
@@ -65,7 +84,11 @@ class GoogleOAuthClient:
                 "redirect_uris": [self.settings.oauth_redirect_uri],
             }
         }
-        flow = Flow.from_client_config(client_config, scopes=self.settings.docs_oauth_scopes)
+        flow = Flow.from_client_config(
+            client_config,
+            scopes=self.settings.docs_oauth_scopes,
+            code_verifier=code_verifier,
+            autogenerate_code_verifier=code_verifier is None,
+        )
         flow.redirect_uri = self.settings.oauth_redirect_uri
         return flow
-

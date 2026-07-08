@@ -47,9 +47,10 @@ def login(request: Request):
     state = uuid4().hex
     session.data["oauth_state"] = state
     try:
-        authorization_url = oauth_client.authorization_url(state)
+        authorization_url, code_verifier = oauth_client.authorization_url(state)
     except UserFacingError as exc:
         return _render_index(request, session, exc.message, status_code=exc.status_code)
+    session.data["oauth_code_verifier"] = code_verifier
     response = RedirectResponse(authorization_url, status_code=302)
     session_store.save(response, session)
     return response
@@ -69,11 +70,15 @@ def auth_callback(request: Request, state: str | None = None):
 
     authorization_response = f"{settings.oauth_redirect_uri}?{request.url.query}"
     try:
-        credentials = oauth_client.fetch_credentials(authorization_response)
+        credentials = oauth_client.fetch_credentials(
+            authorization_response,
+            session.data.get("oauth_code_verifier"),
+        )
     except UserFacingError as exc:
         return _render_index(request, session, exc.message, status_code=exc.status_code)
 
     session.data.pop("oauth_state", None)
+    session.data.pop("oauth_code_verifier", None)
     session.data["credentials"] = credentials.model_dump(mode="json")
     response = RedirectResponse("/", status_code=302)
     session_store.save(response, session)
