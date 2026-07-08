@@ -97,7 +97,7 @@ gcloud auth application-default login
 gcloud config set project SEU_PROJETO
 ```
 
-Se o Google Cloud SDK nao estiver instalado, defina `GOOGLE_APPLICATION_CREDENTIALS` apontando para um JSON de service account com as permissoes minimas. Para projetos novos, prefira `GCP_LOCATION=europe-west4`; regioes como `us-east1`, `us-central1` e `us-east4` podem exigir allowlist para RAG Engine.
+Se o Google Cloud SDK nao estiver instalado, defina `GOOGLE_APPLICATION_CREDENTIALS` apontando para um JSON de service account com as permissoes minimas. Nao use o OAuth Client JSON com chave raiz `web` ou `installed`; esse arquivo serve para login Google do usuario e nao para autenticar o backend no GCP. Para projetos novos, prefira `GCP_LOCATION=europe-west4`; regioes como `us-east1`, `us-central1` e `us-east4` podem exigir allowlist para RAG Engine.
 
 Permissao minima inicial para o usuario/service account que executa a app:
 

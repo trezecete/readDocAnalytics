@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import contextlib
+import json
+import os
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,6 +28,7 @@ class RagEngineClient:
                 status_code=500,
             )
         self.settings = settings
+        self._configure_credentials_env()
 
     @contextlib.contextmanager
     def temporary_corpus(self):
@@ -249,6 +252,44 @@ class RagEngineClient:
                 for text in _extract_context_texts(response)
             )
         return contexts
+
+    def _configure_credentials_env(self) -> None:
+        if not self.settings.google_application_credentials:
+            return
+
+        credentials_path = Path(self.settings.google_application_credentials).expanduser()
+        if not credentials_path.is_absolute():
+            credentials_path = Path.cwd() / credentials_path
+        credentials_path = credentials_path.resolve()
+
+        if not credentials_path.exists():
+            raise ConfigurationError(
+                "GOOGLE_APPLICATION_CREDENTIALS aponta para um arquivo inexistente: "
+                f"{credentials_path}",
+                status_code=500,
+            )
+
+        self._validate_credentials_file(credentials_path)
+
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(credentials_path)
+
+    def _validate_credentials_file(self, credentials_path: Path) -> None:
+        try:
+            payload = json.loads(credentials_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise ConfigurationError(
+                "GOOGLE_APPLICATION_CREDENTIALS precisa apontar para um JSON valido.",
+                status_code=500,
+            ) from exc
+
+        if isinstance(payload, dict) and ("web" in payload or "installed" in payload):
+            raise ConfigurationError(
+                "GOOGLE_APPLICATION_CREDENTIALS aponta para um OAuth Client JSON. Esse arquivo "
+                "serve para login do usuario no Google Docs, mas nao autentica o backend no GCP. "
+                "Use um JSON de service account, um arquivo ADC valido, ou rode "
+                "`gcloud auth application-default login`.",
+                status_code=500,
+            )
 
 
 def _extract_context_texts(response) -> list[str]:

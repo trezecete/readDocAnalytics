@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     google_client_id: str | None = None
     google_client_secret: str | None = None
     google_oauth_redirect_uri: str | None = None
+    google_application_credentials: str | None = None
 
     gcp_project_id: str | None = None
     gcp_location: str = "europe-west4"

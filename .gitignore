@@ -6,6 +6,10 @@ __pycache__/
 .coverage
 htmlcov/
 .env
+credentials.json
+client_secret*.json
+service-account*.json
+*service-account*.json
 *.pyc
 *.pyo
 *.log
@@ -13,4 +17,3 @@ htmlcov/
 dist/
 build/
 *.egg-info/
-
